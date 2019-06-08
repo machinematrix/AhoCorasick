@@ -17,7 +17,7 @@ private:
 	std::vector<std::vector<size_t>> gotoFunc; //filas: estados | columnas: letras en el rango [firstToken;lastToken]
 	std::map<size_t, std::set<StringType>> outputFunc;
 	std::vector<size_t> failureFunc;
-	std::vector<bool> queryFunc; //tells us whether a state is an output state, without having to check outputFunc, which is slower.
+	std::vector<char> queryFunc; //tells us whether a state is an output state, without having to check outputFunc, which is slower.
 public:
 	AhoCorasickMachine(const ChTy firstToken = 'a', const ChTy lastToken = 'z');
 	template <typename InputIterator> AhoCorasickMachine(InputIterator first, InputIterator last, const ChTy firstToken = 'a', const ChTy lastToken = 'z');
