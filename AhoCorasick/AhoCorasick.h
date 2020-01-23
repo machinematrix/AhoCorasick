@@ -2,7 +2,6 @@
 #define __AHOCORASICK__
 #include <vector>
 #include <string>
-#include <iostream>
 #include <queue>
 #include <map>
 #include <set>
