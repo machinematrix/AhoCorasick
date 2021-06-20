@@ -16,18 +16,22 @@ public:
 	using StringViewType = std::basic_string_view<TokenType>;
 private:
 	const TokenType mFirstToken, mLastToken;
-	std::vector<std::vector<size_t>> mGotoFunc; //filas: estados | columnas: letras en el rango [firstToken;lastToken]
-	std::map<size_t, std::set<StringType>> outputFunc;
+	std::vector<std::vector<size_t>> mGotoFunc; //rows: states | columns: letters in the range [firstToken;lastToken]
+	std::map<size_t, std::set<StringType>> mOutputFunc;
 	std::vector<size_t> mFailureFunc;
 	std::vector<char> mQueryFunc; //tells us whether a state is an output state, without having to check outputFunc, which is slower.
 public:
-	AhoCorasickMachine(const TokenType firstToken = 0, const TokenType lastToken = std::numeric_limits<TokenType>::max());
-	template <typename InputIterator> AhoCorasickMachine(InputIterator first, InputIterator last, const TokenType firstToken = 0, const TokenType lastToken = std::numeric_limits<TokenType>::max());
-	AhoCorasickMachine(std::initializer_list<StringViewType> il, const TokenType mFirstToken = 0, const TokenType mLastToken = std::numeric_limits<TokenType>::max());
-	template <typename OutputIterator> void find(StringViewType haystack, OutputIterator output) const;
+	AhoCorasickMachine(const TokenType firstToken = TokenType{}, const TokenType lastToken = std::numeric_limits<TokenType>::max());
+	template <typename InputIterator>
+	AhoCorasickMachine(InputIterator first, InputIterator last, const TokenType firstToken = TokenType{}, const TokenType lastToken = std::numeric_limits<TokenType>::max());
+	AhoCorasickMachine(std::initializer_list<StringViewType> il, const TokenType mFirstToken = TokenType{}, const TokenType mLastToken = std::numeric_limits<TokenType>::max());
+	template <typename OutputIterator>
+	void find(StringViewType haystack, OutputIterator output) const;
 	void addWord(StringViewType word);
 };
+
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 template <typename TokenType>
 AhoCorasickMachine<TokenType>::AhoCorasickMachine(const TokenType firstToken, const TokenType lastToken)
 	:mFirstToken(firstToken),
@@ -39,19 +43,19 @@ AhoCorasickMachine<TokenType>::AhoCorasickMachine(const TokenType firstToken, co
 
 template <typename TokenType>
 template <typename InputIterator>
-AhoCorasickMachine<TokenType>::AhoCorasickMachine(InputIterator first, InputIterator last, const TokenType mFirstToken, const TokenType mLastToken)
-	:AhoCorasickMachine(mFirstToken, mLastToken)
+AhoCorasickMachine<TokenType>::AhoCorasickMachine(InputIterator first, InputIterator last, const TokenType firstToken, const TokenType lastToken)
+	:AhoCorasickMachine(firstToken, lastToken)
 {
-	if (mLastToken <= mFirstToken)
+	if (lastToken <= firstToken)
 		throw std::logic_error("Invalid alphabet");
 
-	while (first != last) //armar arbol de prefijos
+	while (first != last) //make prefix tree
 		addWord(*first++);
 }
 
 template <typename TokenType>
-AhoCorasickMachine<TokenType>::AhoCorasickMachine(std::initializer_list<StringViewType> il, const TokenType mFirstToken, const TokenType mLastToken)
-	:AhoCorasickMachine(il.begin(), il.end(), mFirstToken, mLastToken)
+AhoCorasickMachine<TokenType>::AhoCorasickMachine(std::initializer_list<StringViewType> il, const TokenType firstToken, const TokenType lastToken)
+	:AhoCorasickMachine(il.begin(), il.end(), firstToken, lastToken)
 {}
 
 template <typename TokenType>
@@ -60,7 +64,7 @@ void AhoCorasickMachine<TokenType>::find(StringViewType haystack, OutputIterator
 {
 	size_t state = 0;
 
-	for (typename StringType::size_type i = 0; i < haystack.size(); ++i)
+	for (typename StringType::size_type i = 0, sz = haystack.size(); i < sz; ++i)
 	{
 		while (mGotoFunc[state][haystack[i] - mFirstToken] == -1)
 			state = mFailureFunc[state];
@@ -68,7 +72,7 @@ void AhoCorasickMachine<TokenType>::find(StringViewType haystack, OutputIterator
 		state = mGotoFunc[state][haystack[i] - mFirstToken];
 
 		if (mQueryFunc[state])
-			for (auto &word : outputFunc.at(state))
+			for (auto &word : mOutputFunc.at(state))
 				*output++ = std::make_pair(i - word.size() + 1, word);
 	}
 }
@@ -76,32 +80,37 @@ void AhoCorasickMachine<TokenType>::find(StringViewType haystack, OutputIterator
 template <typename TokenType>
 void AhoCorasickMachine<TokenType>::addWord(StringViewType word)
 {
-	size_t states = mQueryFunc.size();
-	size_t currentState = 0;
+	size_t states = mQueryFunc.size(), currentState = 0;
 	std::queue<size_t> queue;
 
 	for (auto c : word)
 	{
-		if (c < mFirstToken || c > mLastToken) throw std::runtime_error("Invalid letter");
+		if (c < mFirstToken || c > mLastToken)
+			throw std::runtime_error("Invalid token");
+
 		auto &nextState = mGotoFunc[currentState][c - mFirstToken];
-		if ((!currentState && !nextState) || nextState == -1) { //Si no hay un siguiente estado valido para este par {estado, caracter}, agregar un nuevo estado
+
+		if ((!currentState && !nextState) || nextState == -1) //Si no hay un siguiente estado valido para este par {estado, caracter}, agregar un nuevo estado
+		{ 
 			mGotoFunc.emplace_back(mLastToken - mFirstToken + 1, -1); //Construir una nueva fila del tama?o del abecedario, con -1 en todos los elementos
 			nextState = states++;
 		}
 
 		currentState = mGotoFunc[currentState][c - mFirstToken];
 	}
-	if (currentState >= mQueryFunc.size()) {
+
+	if (currentState >= mQueryFunc.size())
 		mQueryFunc.resize(currentState + 1);
-	}
-	outputFunc[currentState].emplace(word.data());
+
+	mOutputFunc[currentState].emplace(word.data());
 	mQueryFunc[currentState] = true;
 
 	mFailureFunc.resize(states);
 
 	for (TokenType i = 0, alphabetSize = mLastToken - mFirstToken; i <= alphabetSize; ++i)
 	{
-		if (auto state = mGotoFunc[0][i]) {
+		if (auto state = mGotoFunc[0][i])
+		{
 			queue.push(state);
 			mFailureFunc[state] = 0;
 		}
@@ -110,19 +119,23 @@ void AhoCorasickMachine<TokenType>::addWord(StringViewType word)
 	while (!queue.empty()) //armar funcion de fallo
 	{
 		auto r = queue.front();
+
 		queue.pop();
-		for (size_t a = 0; a < (size_t)(mLastToken - mFirstToken); ++a)
+
+		for (size_t a = 0; a < static_cast<size_t>(mLastToken - mFirstToken); ++a)
 		{
-			auto s = mGotoFunc[r][a];
-			if (s != -1) {
+			if (auto s = mGotoFunc[r][a]; s != -1)
+			{
 				queue.push(s);
 				auto state = mFailureFunc[r];
 				while (mGotoFunc[state][a] == -1)
 					state = mFailureFunc[state];
+
 				mFailureFunc[s] = mGotoFunc[state][a];
 
-				if (mQueryFunc[s] && mQueryFunc[mFailureFunc[s]]) {
-					auto &embeddedWordSet = outputFunc.at(mFailureFunc[s]), &wordSet = outputFunc.at(s);
+				if (mQueryFunc[s] && mQueryFunc[mFailureFunc[s]])
+				{
+					auto &embeddedWordSet = mOutputFunc.at(mFailureFunc[s]), &wordSet = mOutputFunc.at(s);
 
 					wordSet.insert(embeddedWordSet.begin(), embeddedWordSet.end());
 				}
