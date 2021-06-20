@@ -2,11 +2,12 @@
 #define __AHOCORASICK__
 #include <vector>
 #include <string>
+#include <string_view>
 #include <queue>
 #include <map>
 #include <set>
 #include <stdexcept>
-#include <string_view>
+#include <iterator>
 
 template <typename TokenType>
 class AhoCorasickMachine
@@ -14,6 +15,9 @@ class AhoCorasickMachine
 public:
 	using StringType = std::basic_string<TokenType>;
 	using StringViewType = std::basic_string_view<TokenType>;
+	//<position, word>
+	template <template<typename> typename Container>
+	using FindResult = Container<std::pair<StringViewType, size_t>>;
 private:
 	const TokenType mFirstToken, mLastToken;
 	std::vector<std::vector<size_t>> mGotoFunc; //rows: states | columns: letters in the range [firstToken;lastToken]
@@ -27,6 +31,8 @@ public:
 	AhoCorasickMachine(std::initializer_list<StringViewType> il, const TokenType mFirstToken = TokenType{}, const TokenType mLastToken = std::numeric_limits<TokenType>::max());
 	template <typename OutputIterator>
 	void find(StringViewType haystack, OutputIterator output) const;
+	template <template<typename> typename Container = std::vector>
+	FindResult<Container> find(StringViewType haystack) const;
 	void addWord(StringViewType word);
 };
 
@@ -72,9 +78,19 @@ void AhoCorasickMachine<TokenType>::find(StringViewType haystack, OutputIterator
 		state = mGotoFunc[state][haystack[i] - mFirstToken];
 
 		if (mQueryFunc[state])
-			for (auto &word : mOutputFunc.at(state))
-				*output++ = std::make_pair(i - word.size() + 1, word);
+			for (const auto &word : mOutputFunc.at(state))
+				*output++ = std::pair<StringViewType, size_t>(word, i - word.size() + 1);
 	}
+}
+
+template<typename TokenType>
+template<template<typename> typename Container>
+AhoCorasickMachine<TokenType>::FindResult<Container> AhoCorasickMachine<TokenType>::find(StringViewType haystack) const
+{
+	FindResult<Container> result;
+
+	find(haystack, std::inserter(result, result.end()));
+	return result;
 }
 
 template <typename TokenType>
