@@ -86,12 +86,12 @@ void AhoCorasickMachine<TokenType>::addWord(StringViewType word)
 	for (auto c : word)
 	{
 		if (c < mFirstToken || c > mLastToken)
-			throw std::runtime_error("Invalid token");
+			throw std::invalid_argument("Invalid token");
 
 		auto &nextState = mGotoFunc[currentState][c - mFirstToken];
 
 		if ((!currentState && !nextState) || nextState == -1) //Si no hay un siguiente estado valido para este par {estado, caracter}, agregar un nuevo estado
-		{ 
+		{
 			mGotoFunc.emplace_back(mLastToken - mFirstToken + 1, -1); //Construir una nueva fila del tama?o del abecedario, con -1 en todos los elementos
 			nextState = states++;
 		}
@@ -107,7 +107,7 @@ void AhoCorasickMachine<TokenType>::addWord(StringViewType word)
 
 	mFailureFunc.resize(states);
 
-	for (TokenType i = 0, alphabetSize = mLastToken - mFirstToken; i <= alphabetSize; ++i)
+	for (TokenType i {}, alphabetSize = mLastToken - mFirstToken; i <= alphabetSize; ++i)
 	{
 		if (auto state = mGotoFunc[0][i])
 		{
@@ -116,7 +116,7 @@ void AhoCorasickMachine<TokenType>::addWord(StringViewType word)
 		}
 	}
 
-	while (!queue.empty()) //armar funcion de fallo
+	while (!queue.empty()) //assemble failure function
 	{
 		auto r = queue.front();
 
