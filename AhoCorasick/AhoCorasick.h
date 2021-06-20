@@ -123,7 +123,7 @@ void AhoCorasickMachine<TokenType>::addWord(StringViewType word)
 
 	mFailureFunc.resize(states);
 
-	for (TokenType i {}, alphabetSize = mLastToken - mFirstToken; i <= alphabetSize; ++i)
+	for (size_t i {}, alphabetSize = mLastToken - mFirstToken; i <= alphabetSize; ++i)
 	{
 		if (auto state = mGotoFunc[0][i])
 		{
